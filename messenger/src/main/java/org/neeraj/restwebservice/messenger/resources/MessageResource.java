@@ -23,6 +23,8 @@ import org.neeraj.restwebservice.messenger.model.Message;
 import org.neeraj.restwebservice.messenger.service.MessageService;
 
 @Path("/messages")
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(value ={MediaType.APPLICATION_JSON, MediaType.TEXT_XML})
 public class MessageResource {
     //configure the resource
 	MessageService serv= new MessageService();
@@ -71,10 +73,41 @@ public class MessageResource {
 					//configuration is done in such a way that the varaible will be used to 
 					//access data
 	@Produces(MediaType.APPLICATION_JSON) //@Produces(MediaType.APPLICATION_XML)  
-	public Message getMessage(@PathParam("messageId")long messageId)
+	public Message getMessage(@PathParam("messageId")long messageId , @Context UriInfo uriInfo)
 	{
-		return serv.getMessage(messageId) ;
+		Message message = serv.getMessage(messageId);
+		String  uri =uriInfo.getBaseUriBuilder()					//http://localhost:8080/messenger/webapi
+		.path(MessageResource.class)				//									/messages
+		.path(Long.toString(message.getId()))		//										/{messageId}
+		.build()
+		.toString();
+		message.addLink(uri, "self");
+		message.addLink(getUriForProfile(uriInfo,message),"profile");
+		message.addLink(getUriForComment(uriInfo,message),"comments");
+		return message;
 	} 	
+	
+	private String getUriForComment (UriInfo uriInfo , Message message)
+	{
+		URI uri =uriInfo.getBaseUriBuilder()
+				.path(MessageResource.class)
+				.path(MessageResource.class,"getCommentResource")
+				.path(CommentResource.class)
+				.resolveTemplate("messageId", message.getId())
+				.path(message.getAuthor())
+				.build();
+		return uri.toString();
+	}
+	
+	
+	private String getUriForProfile(UriInfo uriInfo , Message message)
+	{
+		URI uri =uriInfo.getBaseUriBuilder()
+				.path(Profileresource.class)
+				.path(message.getAuthor())
+				.build();
+		return uri.toString();
+	}
 	
 	@PUT
 	@Path("/{messageId}")
